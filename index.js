@@ -51,7 +51,6 @@ bot.start((ctx) => {
     ctx.reply(
       `Hi ${ctx.message.from.first_name},\n\nAccess token required to use this bot.\n\nGet access for 24 hours by clicking Verify.`,
       Markup.inlineKeyboard([
-        [Markup.button.callback("✅ I Have Token - Verify", "verify")],
         [Markup.button.url("🔗 Get Token", "https://shrtlk.biz/81Rv1")],
         [Markup.button.url("📘 How to Use", "https://example.com/how-to-use")],
       ])
@@ -74,7 +73,6 @@ bot.on("message", async (ctx) => {
     return ctx.reply(
       "⚠️ Your access token is missing or expired.\nPlease click Verify below to get 24-hour access.",
       Markup.inlineKeyboard([
-        [Markup.button.callback("✅ I Have Token - Verify", "verify")],
         [Markup.button.url("🔗 Get Token", "https://shrtlk.biz/81Rv1")],
       ])
     );
