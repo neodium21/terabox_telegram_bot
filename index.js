@@ -33,13 +33,16 @@ function grantToken(userId) {
     expires_at: new Date(Date.now() + TOKEN_VALID_HOURS * 3600000).toISOString(),
   };
   saveTokens(tokens);
+  console.log(`✅ Token granted to user ${userId}`);
 }
 
 function isTokenValid(userId) {
   const tokens = loadTokens();
   const userData = tokens[userId];
   if (!userData) return false;
-  return new Date() < new Date(userData.expires_at);
+  const valid = new Date() < new Date(userData.expires_at);
+  console.log(`🔍 Token check for ${userId}: ${valid ? "valid" : "expired"}`);
+  return valid;
 }
 
 // /start command
@@ -51,7 +54,7 @@ bot.start((ctx) => {
     ctx.reply(
       `Hi ${ctx.message.from.first_name},\n\nAccess token required to use this bot.\n\nGet access for 24 hours by clicking Verify.`,
       Markup.inlineKeyboard([
-        [Markup.button.url("🔗 Verify")],
+        [Markup.button.callback("✅ I Have Token - Verify", "verify")],
         [Markup.button.url("🔗 Get Token", "https://shrinkme.ink/d4LXST")],
         [Markup.button.url("📘 How to Use", "https://example.com/how-to-use")],
       ])
@@ -59,14 +62,15 @@ bot.start((ctx) => {
   }
 });
 
-// Verify button handler
+// ✅ Verify button handler (callback)
 bot.action("verify", async (ctx) => {
   const userId = ctx.from.id;
+  await ctx.answerCbQuery(); // acknowledge the button press
   grantToken(userId);
   await ctx.editMessageText("✅ Verified! You now have access for 24 hours. Send a Terabox link to download.");
 });
 
-// Message handler
+// 📥 Message handler
 bot.on("message", async (ctx) => {
   const userId = ctx.from.id;
 
@@ -74,7 +78,7 @@ bot.on("message", async (ctx) => {
     return ctx.reply(
       "⚠️ Your access token is missing or expired.\nPlease click Verify below to get 24-hour access.",
       Markup.inlineKeyboard([
-        [Markup.button.url("🔗 Verify")],
+        [Markup.button.callback("✅ I Have Token - Verify", "verify")],
         [Markup.button.url("🔗 Get Token", "https://shrinkme.ink/d4LXST")],
       ])
     );
@@ -91,7 +95,7 @@ bot.on("message", async (ctx) => {
         ctx.reply("❌ Something went wrong. Couldn't fetch the link.");
       }
     } catch (error) {
-      console.error("Error in getDetails/sendFile:", error);
+      console.error("❌ Error in getDetails/sendFile:", error);
       ctx.reply("❌ An unexpected error occurred. Please try again later.");
     }
   } else {
@@ -99,7 +103,7 @@ bot.on("message", async (ctx) => {
   }
 });
 
-// Webhook/Express server
+// Webhook/Express server setup
 const app = express();
 app.use(bot.webhookCallback("/bot"));
 
@@ -115,7 +119,7 @@ if (WEBHOOK_URL) {
       process.exit(1);
     });
 } else {
-  console.warn("⚠️ WEBHOOK_URL not provided. Falling back to long polling.");
+  console.warn("⚠️ WEBHOOK_URL not provided. Using long polling instead.");
   bot.launch().then(() => {
     console.log("🤖 Bot started using long polling");
   });
