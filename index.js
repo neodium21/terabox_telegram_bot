@@ -51,6 +51,7 @@ bot.start((ctx) => {
     ctx.reply(
       `Hi ${ctx.message.from.first_name},\n\nAccess token required to use this bot.\n\nGet access for 24 hours by clicking Verify.`,
       Markup.inlineKeyboard([
+        [Markup.button.url("🔗 Verify")],
         [Markup.button.url("🔗 Get Token", "https://shrinkme.ink/d4LXST")],
         [Markup.button.url("📘 How to Use", "https://example.com/how-to-use")],
       ])
