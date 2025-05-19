@@ -6,10 +6,18 @@ const fs = require("fs");
 
 const TOKEN_FILE = "token_store.json";
 const TOKEN_VALID_HOURS = 24;
+const PORT = process.env.PORT || 3000;
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+if (!BOT_TOKEN) {
+  console.error("❌ BOT_TOKEN is not defined in environment variables.");
+  process.exit(1);
+}
 
-// Load or initialize token store
+const bot = new Telegraf(BOT_TOKEN);
+
+// Token Management
 function loadTokens() {
   if (!fs.existsSync(TOKEN_FILE)) return {};
   return JSON.parse(fs.readFileSync(TOKEN_FILE));
@@ -31,8 +39,7 @@ function isTokenValid(userId) {
   const tokens = loadTokens();
   const userData = tokens[userId];
   if (!userData) return false;
-  const expiry = new Date(userData.expires_at);
-  return new Date() < expiry;
+  return new Date() < new Date(userData.expires_at);
 }
 
 // /start command
@@ -47,16 +54,16 @@ bot.start((ctx) => {
         [Markup.button.callback("✅ I Have Token - Verify", "verify")],
         [Markup.button.url("🔗 Get Token", "https://shrtlk.biz/81Rv1")],
         [Markup.button.url("📘 How to Use", "https://example.com/how-to-use")],
-      ]),
+      ])
     );
   }
 });
 
 // Verify button handler
-bot.action("verify", (ctx) => {
+bot.action("verify", async (ctx) => {
   const userId = ctx.from.id;
   grantToken(userId);
-  ctx.editMessageText("✅ Verified! You now have access for 24 hours. Send a Terabox link to download.");
+  await ctx.editMessageText("✅ Verified! You now have access for 24 hours. Send a Terabox link to download.");
 });
 
 // Message handler
@@ -69,28 +76,47 @@ bot.on("message", async (ctx) => {
       Markup.inlineKeyboard([
         [Markup.button.callback("✅ I Have Token - Verify", "verify")],
         [Markup.button.url("🔗 Get Token", "https://shrtlk.biz/81Rv1")],
-      ]),
+      ])
     );
   }
 
   const messageText = ctx.message?.text || "";
   if (messageText.includes("terabox.com") || messageText.includes("teraboxapp.com")) {
-    const details = await getDetails(messageText);
-    if (details?.direct_link) {
-      ctx.reply(`Sending Files. Please wait...`);
-      sendFile(details.direct_link, ctx);
-    } else {
-      ctx.reply("Something went wrong 🙃");
+    try {
+      const details = await getDetails(messageText);
+      if (details?.direct_link) {
+        ctx.reply("📥 Sending files. Please wait...");
+        await sendFile(details.direct_link, ctx);
+      } else {
+        ctx.reply("❌ Something went wrong. Couldn't fetch the link.");
+      }
+    } catch (error) {
+      console.error("Error in getDetails/sendFile:", error);
+      ctx.reply("❌ An unexpected error occurred. Please try again later.");
     }
   } else {
-    ctx.reply("Please send a valid Terabox link.");
+    ctx.reply("❗ Please send a valid Terabox link.");
   }
 });
 
-// Express server for webhook (optional)
+// Webhook/Express server
 const app = express();
 app.use(bot.webhookCallback("/bot"));
-bot.telegram.setWebhook(`${process.env.WEBHOOK_URL}/bot`);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Bot server running on port ${PORT}`));
+if (WEBHOOK_URL) {
+  bot.telegram
+    .setWebhook(`${WEBHOOK_URL}/bot`)
+    .then(() => {
+      console.log(`🚀 Webhook set to: ${WEBHOOK_URL}/bot`);
+      app.listen(PORT, () => console.log(`🌐 Bot server running on port ${PORT}`));
+    })
+    .catch((err) => {
+      console.error("❌ Failed to set webhook:", err);
+      process.exit(1);
+    });
+} else {
+  console.warn("⚠️ WEBHOOK_URL not provided. Falling back to long polling.");
+  bot.launch().then(() => {
+    console.log("🤖 Bot started using long polling");
+  });
+}
