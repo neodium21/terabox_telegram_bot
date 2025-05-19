@@ -74,6 +74,7 @@ bot.on("message", async (ctx) => {
     return ctx.reply(
       "⚠️ Your access token is missing or expired.\nPlease click Verify below to get 24-hour access.",
       Markup.inlineKeyboard([
+        [Markup.button.url("🔗 Verify")],
         [Markup.button.url("🔗 Get Token", "https://shrinkme.ink/d4LXST")],
       ])
     );
